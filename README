@@ -1,3 +1,14 @@
+This is the buildsystem for the Embryo Linux distribution, it is based 
+on the OpenWrt Linux distribution.
+
+It adds:
+- targets for real-time hardware platforms
+- real-time operating systems for these targets
+- some custom packages required for smooth operation of these targets
+
+
+Original OpenWrt README:
+
 This is the buildsystem for the OpenWrt Linux distribution
 
 Please use "make menuconfig" to configure your appreciated
