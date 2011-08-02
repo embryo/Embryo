@@ -399,7 +399,7 @@ define KernelPackage/crypto-ocf-hifnhipp
   DEPENDS:=+@OPENSSL_ENGINE @PCI_SUPPORT @!TARGET_uml kmod-crypto-ocf
   KCONFIG:=CONFIG_OCF_HIFNHIPP
   FILES:=$(LINUX_DIR)/crypto/ocf/hifn/hifnHIPP.ko
-  AUTOLOAD:=$(call AutoLoad,10,hifnhipp)
+  AUTOLOAD:=$(call AutoLoad,10,hifnHIPP)
   $(call AddDepends/crypto)
 endef
 
@@ -455,3 +455,19 @@ define KernelPackage/crypto-mv-cesa
 endef
 
 $(eval $(call KernelPackage,crypto-mv-cesa))
+
+
+define KernelPackage/ocf-ubsec-ssb
+  TITLE:=BCM5365P IPSec Core driver
+  DEPENDS:=@TARGET_brcm47xx +kmod-crypto-ocf
+  KCONFIG:=CONFIG_OCF_UBSEC_SSB
+  FILES:=$(LINUX_DIR)/crypto/ocf/ubsec_ssb/ubsec_ssb.ko
+  AUTOLOAD:=$(call AutoLoad,10,ubsec_ssb)
+  $(call AddDepends/crypto)
+endef
+
+define KernelPackage/ocf-ubsec-ssb/description
+  This package contains the OCF driver for the BCM5365p IPSec Core
+endef
+
+$(eval $(call KernelPackage,ocf-ubsec-ssb))

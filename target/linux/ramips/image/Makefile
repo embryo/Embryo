@@ -89,6 +89,24 @@ define BuildFirmware/Buffalo
 	fi; fi
 endef
 
+define BuildFirmware/NW718
+	$(call PatchKernelLzma,$(2),$(3) $($(4)))
+	mkimage -A mips -O linux -T kernel -C lzma $(call kernel_entry) \
+		-n "ARA1B4NCRNW718;1" \
+		-d "$(KDIR)/vmlinux-$(2).bin.lzma" \
+		"$(KDIR)/vmlinux-$(2).uImage"
+	if [ `stat -c%s "$(KDIR)/vmlinux-$(2).uImage"` -gt $(5) ]; then \
+		echo "Warning: $(KDIR)/vmlinux-$(2).uImage is too big"; \
+	else if [ `stat -c%s $(KDIR)/root.$(1)` -gt $(6) ]; then \
+		echo "Warning: $(KDIR)/root.$(1) is too big"; \
+	else \
+		( \
+			dd if=$(KDIR)/vmlinux-$(2).uImage bs=$(5) conv=sync; \
+			dd if=$(KDIR)/root.$(1) bs=64k conv=sync; \
+		) > $(call imgname,$(1),$(2))-factory.bin; \
+	fi; fi
+endef
+
 mtdlayout_4M=mtdparts=physmap-flash.0:192k(u-boot)ro,64k(u-boot-env)ro,64k(factory)ro,832k(kernel),2944k(rootfs),3776k@0x50000(firmware)
 define Image/Build/Template/GENERIC_4M
 	$(call BuildFirmware/Generic,$(1),$(2),board=$(3),mtdlayout_4M,851968,3014656)
@@ -104,20 +122,43 @@ mtd_dir300b1_kernel_part_size=851968
 mtd_dir300b1_rootfs_part_size=3014656
 define Image/Build/Template/DIR300B1
 	$(call BuildFirmware/Generic,$(1),$(2),board=$(3),mtdlayout_dir300b1,$(mtd_dir300b1_kernel_part_size),$(mtd_dir300b1_rootfs_part_size))
-	mkwrgimg -s wrgn23_dlwbr_dir300b -d /dev/mtdblock/2 \
+	mkwrgimg -s $(4) -d /dev/mtdblock/2 \
 		-i $(call imgname,$(1),$(2))-sysupgrade.bin \
 		-o $(call imgname,$(1),$(2))-factory.bin
 endef
 
+mtdlayout_nw718=mtdparts=spi0.0:192k(u-boot)ro,128k(config)ro,64k(factory)ro,832k(kernel),2880k(rootfs),3712k@0x60000(firmware)
+define Image/Build/Template/NW718
+	$(call BuildFirmware/Generic,$(1),$(2),board=$(3),mtdlayout_nw718,851968,2949120)
+	$(call BuildFirmware/NW718,$(1),$(2),board=$(3),mtdlayout_nw718,851968,2949120)
+endef
+
 define Image/Build/Profile/DIR300B1
-	$(call Image/Build/Template/DIR300B1,$(1),dir-300-b1,DIR-300-revB)
+	$(call Image/Build/Template/DIR300B1,$(1),dir-300-b1,DIR-300-B1,wrgn23_dlwbr_dir300b)
+	$(call Image/Build/Template/DIR300B1,$(1),dir-600-b1,DIR-600-B1,wrgn23_dlwbr_dir600b)
+	$(call Image/Build/Template/DIR300B1,$(1),dir-600-b2,DIR-600-B2,wrgn23_dlwbr_dir600b)
+endef
+
+mtdlayout_rtg32b1=mtdparts=spi0.0:192k(u-boot)ro,64k(devdata)ro,64k(devconf)ro,832k(kernel),2944k(rootfs),3776k@0x50000(firmware)
+mtd_rtg32b1_kernel_part_size=851968
+mtd_rtg32b1_rootfs_part_size=3014656
+define Image/Build/Template/RTG32B1
+	$(call BuildFirmware/Generic,$(1),$(2),board=$(3),mtdlayout_rtg32b1,$(mtd_rtg32b1_kernel_part_size),$(mtd_rtg32b1_rootfs_part_size))
+endef
+
+define Image/Build/Profile/RTG32B1
+	$(call Image/Build/Template/RTG32B1,$(1),rt-g32-b1,RT-G32-B1)
 endef
 
 define Image/Build/Profile/FONERA20N
 	$(call Image/Build/Template/GENERIC_8M,$(1),fonera20n,FONERA20N)
 endef
 
-define Image/Build/Template/PWH2004
+define Image/Build/Profile/NW718
+	$(call Image/Build/Template/NW718,$(1),nw718,NW718)
+endef
+
+define Image/Build/Profile/PWH2004
 	$(call Image/Build/Template/GENERIC_8M,$(1),pwh2004,PWH2004)
 endef
 
@@ -173,8 +214,10 @@ endef
 ifeq ($(CONFIG_RALINK_RT305X),y)
 define Image/Build/Profile/Default
 	$(call Image/Build/Profile/DIR300B1,$(1))
+	$(call Image/Build/Profile/RTG32B1,$(1))
 	$(call Image/Build/Profile/FONERA20N,$(1))
 	$(call Image/Build/Profile/V22RW2X2,$(1))
+	$(call Image/Build/Profile/NW718,$(1))
 	$(call Image/Build/Profile/PWH2004,$(1))
 	$(call Image/Build/Profile/WHRG300N,$(1))
 	$(call Image/Build/Profile/WCR150GN,$(1))

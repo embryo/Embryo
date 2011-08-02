@@ -423,9 +423,31 @@ static void ag71xx_dma_reset(struct ag71xx *ag)
 			 FIFO_CFG5_LE | FIFO_CFG5_FT | FIFO_CFG5_16 | \
 			 FIFO_CFG5_17 | FIFO_CFG5_SF)
 
+static void ag71xx_hw_stop(struct ag71xx *ag)
+{
+	/* disable all interrupts and stop the rx engine */
+	ag71xx_wr(ag, AG71XX_REG_INT_ENABLE, 0);
+	ag71xx_wr(ag, AG71XX_REG_RX_CTRL, 0);
+}
+
 static void ag71xx_hw_init(struct ag71xx *ag)
 {
 	struct ag71xx_platform_data *pdata = ag71xx_get_pdata(ag);
+	u32 reset_mask = pdata->reset_bit;
+
+	ag71xx_hw_stop(ag);
+
+	if (pdata->is_ar724x) {
+		u32 reset_phy = reset_mask;
+
+		reset_phy &= RESET_MODULE_GE0_PHY | RESET_MODULE_GE1_PHY;
+		reset_mask &= ~(RESET_MODULE_GE0_PHY | RESET_MODULE_GE1_PHY);
+
+		ar71xx_device_stop(reset_phy);
+		mdelay(50);
+		ar71xx_device_start(reset_phy);
+		mdelay(200);
+	}
 
 	ag71xx_sb(ag, AG71XX_REG_MAC_CFG1, MAC_CFG1_SR);
 	udelay(20);
@@ -433,7 +455,7 @@ static void ag71xx_hw_init(struct ag71xx *ag)
 	ar71xx_device_stop(pdata->reset_bit);
 	mdelay(100);
 	ar71xx_device_start(pdata->reset_bit);
-	mdelay(100);
+	mdelay(200);
 
 	/* setup MAC configuration registers */
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG1, MAC_CFG1_INIT);
@@ -469,13 +491,6 @@ static void ag71xx_hw_start(struct ag71xx *ag)
 
 	/* enable interrupts */
 	ag71xx_wr(ag, AG71XX_REG_INT_ENABLE, AG71XX_INT_INIT);
-}
-
-static void ag71xx_hw_stop(struct ag71xx *ag)
-{
-	/* disable all interrupts and stop the rx engine */
-	ag71xx_wr(ag, AG71XX_REG_INT_ENABLE, 0);
-	ag71xx_wr(ag, AG71XX_REG_RX_CTRL, 0);
 }
 
 void ag71xx_link_adjust(struct ag71xx *ag)
@@ -739,7 +754,6 @@ static void ag71xx_tx_timeout(struct net_device *dev)
 static void ag71xx_restart_work_func(struct work_struct *work)
 {
 	struct ag71xx *ag = container_of(work, struct ag71xx, restart_work);
-	struct ag71xx_platform_data *pdata = ag71xx_get_pdata(ag);
 
 	ag71xx_stop(ag->dev);
 	ag71xx_open(ag->dev);
